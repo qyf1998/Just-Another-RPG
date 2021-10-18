@@ -11,13 +11,16 @@ namespace RPG.Control
         public GameObject ClickIndicator;
         void Update()
         {
-            InteractWithCombat();
+
+            if (InteractWithCombat()) return;
             
-            InteractWithMovement();
+            if (InteractWithMovement()) return;
+
+            print("nothing to do");
 
         }
 
-        private void InteractWithCombat()
+        private bool InteractWithCombat()
         {
             RaycastHit[] hits = Physics.RaycastAll(GetMouseRay());
             foreach (RaycastHit hit in hits)
@@ -29,24 +32,28 @@ namespace RPG.Control
                 {
                     GetComponent<Fighter>().Attack(target);
                 }
+                return true;
             }
+            return false;
         }
 
-        private void InteractWithMovement()
+        private bool InteractWithMovement()
         {
             // Mouse left click
-            if (Input.GetMouseButton(0))
+            RaycastHit hit;
+            bool hasHit = Physics.Raycast(GetMouseRay(), out hit);
+            if (hasHit)
             {
-                Ray ray = GetMouseRay();
-                RaycastHit hit;
-                bool hasHit = Physics.Raycast(ray, out hit);
-                if (hasHit)
+                if (Input.GetMouseButton(0))
                 {
                     Vector3 click_point = hit.point;
                     PlaceCursor(click_point);
                     MoveToCursor(click_point);
                 }
+                return true;    
             }
+            
+            return false;
         }
 
         private static Ray GetMouseRay()
@@ -57,7 +64,7 @@ namespace RPG.Control
         // move the agent to mouse click position 
         private void MoveToCursor(Vector3 p)
         {
-            GetComponent<Mover>().MoveTo(p);
+            GetComponent<Mover>().StartMoveAction(p);
             // print("player is moving to: " + p);
         }
 
