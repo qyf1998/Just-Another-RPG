@@ -10,6 +10,8 @@ namespace RPG.Movement
     public class Mover : MonoBehaviour, IAction
     {
         [SerializeField] Transform target;
+        [SerializeField] float maxSpeed = 4.5f;
+        Health health;
 
         NavMeshAgent navMeshAgent;
         Ray lastRay;
@@ -17,27 +19,31 @@ namespace RPG.Movement
         void Start()
         {
             navMeshAgent = GetComponent<NavMeshAgent>();
+            health = GetComponent<Health>();
         }
 
         // Update is called once per frame
         void Update()
         {
+            navMeshAgent.enabled = !health.IsDead();
+
             UpdateAnimator();
             // debug ray on the scene 
             // Debug.DrawRay(lastRay.origin, lastRay.direction * 100);
         }
 
 
-        public void StartMoveAction(Vector3 destination)
+        public void StartMoveAction(Vector3 destination, float speedFraction)
         {
             GetComponent<ActionScheduler>().StartAction(this);
-            MoveTo(destination);
+            MoveTo(destination, speedFraction);
         }
 
         // move to agent (player) to the Vector3 point. 
-        public void MoveTo(Vector3 destination)
+        public void MoveTo(Vector3 destination, float speedFraction)
         {
             navMeshAgent.destination = destination;
+            navMeshAgent.speed = maxSpeed * Mathf.Clamp01(speedFraction);
             navMeshAgent.isStopped = false;
             // print("MoveTo Command: isStopped: " + navMeshAgent.isStopped);
         }

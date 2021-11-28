@@ -2,6 +2,7 @@ using UnityEngine;
 using RPG.Movement;
 using UnityEngine.AI;
 using RPG.Core;
+using System;
 
 namespace RPG.Combat
 {
@@ -9,18 +10,36 @@ namespace RPG.Combat
 
     public class Fighter : MonoBehaviour, IAction
     {
-        [SerializeField] float weaponRange = 2f;
-        Transform target;
 
+        [SerializeField] float timeBetweenAttacks = 1f;
+
+
+        [SerializeField] Transform rightHandTransform = null;
+        [SerializeField] Transform leftHandTransform = null;
+        [SerializeField] Weapon defaultWeapon = null;
+        
+
+        Health target;
+
+        float timeSinceLastAttack = Mathf.Infinity;
+        Weapon currentWeapon = null;
+
+        private void Start()
+        {
+            EquipWeapon(defaultWeapon);
+        }
 
 
 
         private void Update()
         {   
+            timeSinceLastAttack += Time.deltaTime;
+
             if (target == null ) return; 
+            if (target.IsDead()) return;
             if ( !isInRange()) 
             {
-                GetComponent<Mover>().MoveTo(target.position);
+                GetComponent<Mover>().MoveTo(target.transform.position, 1f);
             }
             else
             {
@@ -30,37 +49,88 @@ namespace RPG.Combat
 
         }
 
+        public void EquipWeapon(Weapon weapon)
+        {
+            currentWeapon = weapon;
+            Animator animator = GetComponent<Animator>(); 
+            weapon.Spawn(rightHandTransform, leftHandTransform, animator);
+        }
+
         private void AttackBehaviour()
         {
+            transform.LookAt(target.transform);
+            if (timeSinceLastAttack > timeBetweenAttacks)
+            {
+                // this will trigger the Hit() event 
+                TriggerAttack();
+                timeSinceLastAttack = 0f;
+
+            }
+        }
+
+
+        private void TriggerAttack()
+        {
+            // reset trigger
+            GetComponent<Animator>().ResetTrigger("stopAttack");
             GetComponent<Animator>().SetTrigger("attack");
-        }
-
-        
-        private bool isInRange()
-        {
-            float v = Vector3.Distance(transform.position, target.position);
-            bool isInRange = v < weaponRange;
-            return isInRange;
-        }
-
-        public void Attack(CombatTarget combatTarget)
-        {
-            GetComponent<ActionScheduler>().StartAction(this);
-            target = combatTarget.transform;
-        }
-
-        public void Cancel()
-        {
-            target = null;
         }
 
 
         // animation
         void Hit()
         {
+            // cant find a target 
+            if (target == null) return;
 
+            if (currentWeapon.HasProjectile())
+            {
+                currentWeapon.LaunchProjectile(rightHandTransform, leftHandTransform, target);
+            }
+            else 
+            {
+                target.TakeDamage(currentWeapon.GetDamage());
+            }
+        }
+
+        void Shoot()
+        {
+            Hit();
+        }
+        
+        private bool isInRange()
+        {
+            float v = Vector3.Distance(transform.position, target.transform.position);
+            bool isInRange = v < currentWeapon.GetRange();
+            return isInRange;
         }
 
 
+        public bool CanAttack(GameObject combatTarget)
+        {
+            if (combatTarget == null) return false;
+            Health targetToTest = combatTarget.GetComponent<Health>();
+            return targetToTest != null && !targetToTest.IsDead();
+        }
+
+
+        public void Attack(GameObject combatTarget)
+        {
+            GetComponent<ActionScheduler>().StartAction(this);
+            target = combatTarget.GetComponent<Health>();
+        }
+
+        public void Cancel()
+        {
+            StopAttack();
+            target = null;
+            GetComponent<Mover>().Cancel();
+        }
+
+        private void StopAttack()
+        {
+            GetComponent<Animator>().ResetTrigger("attack");
+            GetComponent<Animator>().SetTrigger("stopAttack");
+        }
     }
 }
